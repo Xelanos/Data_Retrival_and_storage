@@ -1,15 +1,15 @@
 package webdata;
 
-import webdata.Compress.ArtimaticCodingCompressor;
 import webdata.Compress.FixedBitCompressor;
-import webdata.Compress.GroupVarintCompressor;
-import webdata.Compress.IndexDir;
+import webdata.Compress.OneByteCompressor;
 
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static webdata.IndexFile.*;
 
 
 public class SlowIndexWriter {
@@ -20,7 +20,7 @@ public class SlowIndexWriter {
     private final Pattern SCORE_PATTERN = Pattern.compile("review\\/score:\\s*(\\d+)\\.?\\d+\\s*review\\/time");
     private final Pattern TEXT_PATTERN = Pattern.compile("review\\/text:\\s*([\\S\\s]+)");
 
-    private TreeMap<String, TreeSet<Integer>> wordsDictionary = new TreeMap<>();
+    private TreeMap<String, TreeMap<Integer, Integer>> wordsDictionary = new TreeMap<>();
     private TreeMap<String, TreeSet<Integer>> productIdDictionary = new TreeMap<>();
 
     private CompersableIntArray reviewsLength = new CompersableIntArray();
@@ -84,19 +84,18 @@ public class SlowIndexWriter {
 
             File mainDir = new File(dir);
             mainDir.mkdir();
-            for (IndexDir directory : IndexDir.values()){
+            for (IndexDir directory : IndexDir.values()) {
                 File f = new File(dir + "/" + directory.toString());
                 f.mkdir();
             }
 
-            for (IndexFile file : IndexFile.values()){
+            for (IndexFile file : IndexFile.values()) {
                 File f = new File(dir + "/" + file.toString());
                 f.createNewFile();
-                }
+            }
 
 
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             System.err.println("Couldn't make index dirs and files, reason: ");
             e.printStackTrace();
         }
@@ -105,22 +104,29 @@ public class SlowIndexWriter {
 
     private void writeToDisk(String dir) throws IOException {
 
-        FixedBitCompressor writer = new FixedBitCompressor();
-        writer.encode(reviewsScore.toPrimitiveArray(), dir + "/" + IndexFile.REVIEWS_SCORE);
+        FixedBitCompressor fixedBitCompressor = new FixedBitCompressor();
+        fixedBitCompressor.encode(reviewsScore.toPrimitiveArray(), dir + "/" + REVIEWS_SCORE_FILE);
 
+        OneByteCompressor oneByteCompressor = new OneByteCompressor();
+        oneByteCompressor.encode(reviewsDenominator.toPrimitiveArray(), dir + "/" + REVIEWS_DENUM_FILE);
+        oneByteCompressor.encode(reviewsNumerator.toPrimitiveArray(), dir + "/" + REVIEWS_NUMERATOR_FILE);
+
+
+        System.out.println("g");
 
 
 //        ArtimaticCodingCompressor<Integer> writer = new ArtimaticCodingCompressor<Integer>();
 //        double[] code = writer.encode(reviewsLength.toGapsArray(), "d");
 //        writer.saveProbabilitiesTable(dir +"/" + IndexFile.REVIEWS_LENGTH + "Arit");
-//        try {
-//            DataOutputStream outCode = new DataOutputStream(new FileOutputStream(dir + "/" +IndexFile.REVIEWS_LENGTH + "Code"));
-//            outCode.writeDouble(code[0]);
-//            outCode.writeDouble(code[1]);
-//            outCode.close();
-//        } catch (IOException i) {
-//            i.printStackTrace();
-//        }
+        try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + TEST_FILE);
+             ObjectOutputStream out = new ObjectOutputStream(fileOut)){
+            out.writeObject(this.wordsDictionary);
+
+        }
+        catch (IOException e){
+            System.err.println("Couldn't save probabilities");
+            e.printStackTrace();
+        }
 //        GroupVarintCompressor writer = new GroupVarintCompressor();
 //        writer.encode(reviewsLength.toPrimitiveArray(), dir + "/" + IndexFile.REVIEWS_LENGTH);
 
@@ -145,7 +151,11 @@ public class SlowIndexWriter {
         Matcher helpMatcher = HELPFULLNESS_PATTERN.matcher(review);
         if (helpMatcher.find()) {
             helpfulnessNumerator = Integer.parseInt(helpMatcher.group(1).strip());
+            if (helpfulnessNumerator > 100) helpfulnessNumerator = 100;
+            if (helpfulnessNumerator < 0) helpfulnessNumerator = 0;
             helpfulnessDenominator = Integer.parseInt(helpMatcher.group(2).strip());
+            if (helpfulnessDenominator > 100) helpfulnessDenominator = 100;
+            if (helpfulnessDenominator < 0) helpfulnessDenominator = 0;
         } else {
             System.out.println("Couldn't find helpfulness for review number:" + reviewIndex +
                     ". setting default 0/0");
@@ -192,19 +202,20 @@ public class SlowIndexWriter {
         reviewsDenominator.add(helpfulnessDenominator);
         reviewsScore.add(score);
 
-        if (!productIdDictionary.containsKey(productID))
-        {
+        if (!productIdDictionary.containsKey(productID)) {
             productIdDictionary.put(productID, new TreeSet<>());
         }
         productIdDictionary.get(productID).add(reviewIndex);
 
-        for (String word : words)
-        {
-            if (!wordsDictionary.containsKey(word))
-            {
-                wordsDictionary.put(word, new TreeSet<>());
+        for (String word : words) {
+            if (!wordsDictionary.containsKey(word)) {
+                wordsDictionary.put(word, new TreeMap<>());
             }
-            wordsDictionary.get(word).add(reviewIndex);
+            if (!wordsDictionary.get(word).containsKey(reviewIndex)) {
+                wordsDictionary.get(word).put(reviewIndex, 0);
+
+            }
+            wordsDictionary.get(word).put(reviewIndex, wordsDictionary.get(word).get(reviewIndex) + 1);
         }
 
     }
@@ -215,15 +226,14 @@ public class SlowIndexWriter {
      */
     public void removeIndex(String dir) {
         File directory = new File(dir);
-        String[]entries = directory.list();
-        for(String s: entries){
-            File currentFile = new File(directory.getPath(),s);
+        String[] entries = directory.list();
+        for (String s : entries) {
+            File currentFile = new File(directory.getPath(), s);
             currentFile.delete();
         }
         directory.delete();
 
     }
-
 
 
     private String readInputFile(String filePath) throws IOException {

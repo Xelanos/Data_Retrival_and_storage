@@ -68,7 +68,7 @@ public class FixedBitCompressor implements IntCompressor {
     public int[] decode(String file) {
         ArrayList<Integer> result = new ArrayList<>();
         try {
-            byte[] bytes = Files.readAllBytes(Path.of(file));
+            byte[] bytes = Files.readAllBytes(Paths.get(file));
             for (Byte twoNums : bytes){
                 int firstNum = (twoNums >> 5) & 7;
                 result.add(firstNum);

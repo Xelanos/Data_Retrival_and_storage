@@ -1,4 +1,4 @@
-package webdata.Compress;
+package webdata;
 
 public enum IndexDir {
     REVIEWS_DIR("reviews");

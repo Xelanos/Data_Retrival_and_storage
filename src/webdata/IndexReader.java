@@ -2,14 +2,19 @@ package webdata;
 
 import webdata.Compress.FixedBitCompressor;
 import webdata.Compress.GroupVarintCompressor;
+import webdata.Compress.OneByteCompressor;
 
 import java.io.*;
 import java.util.*;
 
+import static webdata.IndexFile.*;
+
 public class IndexReader {
 
     private String indexDirectory;
-    private GroupVarintCompressor groupVarintReader;
+    private GroupVarintCompressor groupVarintReader = new GroupVarintCompressor();
+    private FixedBitCompressor fixedBitReader = new FixedBitCompressor();
+    private OneByteCompressor oneByteReader = new OneByteCompressor();
 
 
     /**
@@ -18,7 +23,6 @@ public class IndexReader {
      */
     public IndexReader(String dir) {
         this.indexDirectory = dir;
-        this.groupVarintReader = new GroupVarintCompressor();
     }
 
     /**
@@ -34,10 +38,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
-        FixedBitCompressor reader = new FixedBitCompressor();
-        int[] reviewScores = reader.decode(indexDirectory + "/" + IndexFile.REVIEWS_SCORE);
-
-        return reviewScores[reviewId];
+        return fixedBitReader.decode(indexDirectory + "/" + REVIEWS_SCORE_FILE)[reviewId];
     }
 
     /**
@@ -45,7 +46,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
-        return 0;
+        return oneByteReader.decode(indexDirectory + "/" + REVIEWS_NUMERATOR_FILE)[reviewId];
     }
 
     /**
@@ -53,7 +54,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
-        return 0;
+        return oneByteReader.decode(indexDirectory + "/" + REVIEWS_DENUM_FILE)[reviewId];
     }
 
     /**
@@ -62,7 +63,7 @@ public class IndexReader {
      */
     public int getReviewLength(int reviewId) {
         try {
-            DataInputStream in = new DataInputStream(new FileInputStream(indexDirectory + "/" + IndexFile.REVIEWS_LENGTH + "Code"));
+            DataInputStream in = new DataInputStream(new FileInputStream(indexDirectory + "/" + REVIEWS_LENGTH_FILE + "Code"));
             double numberOfElements = in.readDouble();
             double code = in.readDouble();
             System.out.println("code");
