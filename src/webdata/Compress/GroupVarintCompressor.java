@@ -8,12 +8,12 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class GroupVarintCompressor implements Compressor {
+public class GroupVarintCompressor implements IntCompressor{
     private static final int BUFFER_SIZE = 4096;
 
     private static final int NUMBER_OF_GROUPS = 4;
 
-    @Override
+
     public void encode(int[] array, String file) {
 
         int[] group = new int[NUMBER_OF_GROUPS];
@@ -56,9 +56,8 @@ public class GroupVarintCompressor implements Compressor {
             }
 
         }
-        for (int i = firstByteBitString.length(); i < 8; i++) {
-            firstByteBitString.append("0");
-        }
+        //Pad with zeroes
+        firstByteBitString.append("0".repeat(Math.max(0, 8 - firstByteBitString.length())));
 
         bytesToWrite.add(0, (byte) Integer.parseInt(firstByteBitString.toString(), 2));
 
@@ -78,7 +77,6 @@ public class GroupVarintCompressor implements Compressor {
     }
 
 
-    @Override
     public int[] decode(String file) {
         ArrayList<Integer> decodedList = new ArrayList<>();
         int index = 0;

@@ -1,11 +1,15 @@
 package webdata;
 
+import webdata.Compress.FixedBitCompressor;
+import webdata.Compress.GroupVarintCompressor;
+
 import java.io.*;
 import java.util.*;
 
 public class IndexReader {
 
     private String indexDirectory;
+    private GroupVarintCompressor groupVarintReader;
 
 
     /**
@@ -14,6 +18,7 @@ public class IndexReader {
      */
     public IndexReader(String dir) {
         this.indexDirectory = dir;
+        this.groupVarintReader = new GroupVarintCompressor();
     }
 
     /**
@@ -29,7 +34,10 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
-        return 0;
+        FixedBitCompressor reader = new FixedBitCompressor();
+        int[] reviewScores = reader.decode(indexDirectory + "/" + IndexFile.REVIEWS_SCORE);
+
+        return reviewScores[reviewId];
     }
 
     /**
@@ -53,7 +61,20 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
-        return 0;
+        try {
+            DataInputStream in = new DataInputStream(new FileInputStream(indexDirectory + "/" + IndexFile.REVIEWS_LENGTH + "Code"));
+            double numberOfElements = in.readDouble();
+            double code = in.readDouble();
+            System.out.println("code");
+
+
+        }
+        catch (IOException e) {
+            System.err.println("Problem when reading the file");
+            e.printStackTrace();
+        }
+        return 1;
+
     }
 
     /**

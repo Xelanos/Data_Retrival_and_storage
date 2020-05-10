@@ -1,5 +1,10 @@
 package webdata;
 
+import webdata.Compress.ArtimaticCodingCompressor;
+import webdata.Compress.FixedBitCompressor;
+import webdata.Compress.GroupVarintCompressor;
+import webdata.Compress.IndexDir;
+
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.*;
@@ -24,7 +29,7 @@ public class SlowIndexWriter {
     private CompersableIntArray reviewsScore = new CompersableIntArray();
 
     private int numberOfReviews;
-
+    private String indexDirectory;
 
 
     public SlowIndexWriter() {
@@ -38,6 +43,8 @@ public class SlowIndexWriter {
      * if the directory does not exist, it should be created
      */
     public void slowWrite(String inputFile, String dir) {
+        makeAllfilesAndDirs(dir);
+
         //Creating directory and reading input file
         String reviews = null;
         try {
@@ -63,15 +70,59 @@ public class SlowIndexWriter {
 
         numberOfReviews = runningReviewIndex + 1;
 
-
         try {
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(dir + "/test.ob"));
-            objectOutputStream.writeObject(productIdDictionary);
-            objectOutputStream.close();
+            writeToDisk(dir);
         } catch (IOException e) {
+            System.err.println("Failed while writing to disk, cause:");
             e.printStackTrace();
         }
 
+    }
+
+    private void makeAllfilesAndDirs(String dir) {
+        try {
+
+            File mainDir = new File(dir);
+            mainDir.mkdir();
+            for (IndexDir directory : IndexDir.values()){
+                File f = new File(dir + "/" + directory.toString());
+                f.mkdir();
+            }
+
+            for (IndexFile file : IndexFile.values()){
+                File f = new File(dir + "/" + file.toString());
+                f.createNewFile();
+                }
+
+
+        }
+        catch (IOException e) {
+            System.err.println("Couldn't make index dirs and files, reason: ");
+            e.printStackTrace();
+        }
+
+    }
+
+    private void writeToDisk(String dir) throws IOException {
+
+        FixedBitCompressor writer = new FixedBitCompressor();
+        writer.encode(reviewsScore.toPrimitiveArray(), dir + "/" + IndexFile.REVIEWS_SCORE);
+
+
+
+//        ArtimaticCodingCompressor<Integer> writer = new ArtimaticCodingCompressor<Integer>();
+//        double[] code = writer.encode(reviewsLength.toGapsArray(), "d");
+//        writer.saveProbabilitiesTable(dir +"/" + IndexFile.REVIEWS_LENGTH + "Arit");
+//        try {
+//            DataOutputStream outCode = new DataOutputStream(new FileOutputStream(dir + "/" +IndexFile.REVIEWS_LENGTH + "Code"));
+//            outCode.writeDouble(code[0]);
+//            outCode.writeDouble(code[1]);
+//            outCode.close();
+//        } catch (IOException i) {
+//            i.printStackTrace();
+//        }
+//        GroupVarintCompressor writer = new GroupVarintCompressor();
+//        writer.encode(reviewsLength.toPrimitiveArray(), dir + "/" + IndexFile.REVIEWS_LENGTH);
 
     }
 
@@ -105,6 +156,8 @@ public class SlowIndexWriter {
         Matcher scoreMatcher = SCORE_PATTERN.matcher(review);
         if (scoreMatcher.find()) {
             score = Integer.parseInt(scoreMatcher.group(1).strip());
+            if (score > 5) score = 5;
+            if (score < 1) score = 1;
         } else {
             System.out.println("Couldn't find score for review number:" + reviewIndex +
                     ". setting default 0");
@@ -185,4 +238,11 @@ public class SlowIndexWriter {
         reader.close();
         return lines.toString();
     }
+
+    private void makeAndSetDirectory(String dir) {
+
+        this.indexDirectory = dir;
+
+    }
+
 }
