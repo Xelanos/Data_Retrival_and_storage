@@ -1,13 +1,19 @@
 package webdata;
 
-import java.util.Enumeration;
+import java.io.*;
+import java.util.*;
 
 public class IndexReader {
+
+    private String indexDirectory;
+
+
     /**
      * Creates an IndexReader which will read from the given directory
      * 3
      */
     public IndexReader(String dir) {
+        this.indexDirectory = dir;
     }
 
     /**
@@ -15,6 +21,7 @@ public class IndexReader {
      * Returns null if there is no review with the given identifier
      */
     public String getProductId(int reviewId) {
+        return "0";
     }
 
     /**
@@ -22,6 +29,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
+        return 0;
     }
 
     /**
@@ -29,6 +37,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
+        return 0;
     }
 
     /**
@@ -36,6 +45,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
+        return 0;
     }
 
     /**
@@ -43,6 +53,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
+        return 0;
     }
 
     /**
@@ -50,6 +61,7 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
+        return 0;
     }
 
     /**
@@ -58,6 +70,7 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenCollectionFrequency(String token) {
+        return 0;
     }
 
     /**
@@ -73,6 +86,7 @@ public class IndexReader {
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
+        return 0;
     }
 
     /**
@@ -80,6 +94,7 @@ public class IndexReader {
      * (Tokens should be counted as many times as they appear)
      */
     public int getTokenSizeOfReviews() {
+        return 0;
     }
 
     /**
@@ -89,5 +104,13 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
+        try {
+            ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(indexDirectory + "/test.ob"));
+            TreeMap<String, TreeSet<Integer>> dict = (TreeMap) objectInputStream.readObject();
+            return Collections.enumeration(dict.get(productId));
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+            return Collections.enumeration(new ArrayList<Integer>());
+        }
     }
 }
