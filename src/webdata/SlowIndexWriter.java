@@ -2,6 +2,8 @@ package webdata;
 
 import webdata.Compress.FixedBitCompressor;
 import webdata.Compress.OneByteCompressor;
+import webdata.dictionary.ReviewsData;
+import webdata.dictionary.Trie;
 
 import java.io.*;
 import java.nio.file.Paths;
@@ -114,13 +116,19 @@ public class SlowIndexWriter {
 
         System.out.println("g");
 
+        Trie<ReviewsData> trie = new Trie<>();
+        for (var entry : wordsDictionary.entrySet()) {
+            trie.add(entry.getKey(), new ReviewsData(entry.getValue().size()));
+
+        }
+
 
 //        ArtimaticCodingCompressor<Integer> writer = new ArtimaticCodingCompressor<Integer>();
 //        double[] code = writer.encode(reviewsLength.toGapsArray(), "d");
 //        writer.saveProbabilitiesTable(dir +"/" + IndexFile.REVIEWS_LENGTH + "Arit");
         try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + TEST_FILE);
              ObjectOutputStream out = new ObjectOutputStream(fileOut)){
-            out.writeObject(this.wordsDictionary);
+            out.writeObject(trie);
 
         }
         catch (IOException e){
@@ -183,7 +191,7 @@ public class SlowIndexWriter {
                     ". setting default \"null\"");
             text = "null";
         }
-        String[] words = text.replaceAll("[^a-zA-Z ]", "").toLowerCase().split("\\s+");
+        String[] words = text.toLowerCase().split("[^a-zA-Z\\d]");
 
 //        System.out.println(review + "\n");
 //        System.out.printf("productId : %s\nhelpfulness: %d/%d \nscore: %d\n\n",
@@ -208,6 +216,7 @@ public class SlowIndexWriter {
         productIdDictionary.get(productID).add(reviewIndex);
 
         for (String word : words) {
+            if (word.equals("")) continue;
             if (!wordsDictionary.containsKey(word)) {
                 wordsDictionary.put(word, new TreeMap<>());
             }
@@ -225,13 +234,19 @@ public class SlowIndexWriter {
      * Delete all index files by removing the given directory
      */
     public void removeIndex(String dir) {
-        File directory = new File(dir);
-        String[] entries = directory.list();
-        for (String s : entries) {
-            File currentFile = new File(directory.getPath(), s);
-            currentFile.delete();
+        for (IndexFile file : IndexFile.values()) {
+            File f = new File(dir + "/" + file.toString());
+            f.delete();
         }
-        directory.delete();
+
+
+        for (IndexDir directory : IndexDir.values()) {
+            File f = new File(dir + "/" + directory.toString());
+            f.delete();
+        }
+
+        File mainDir = new File(dir);
+        mainDir.delete();
 
     }
 
