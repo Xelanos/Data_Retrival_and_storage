@@ -1,8 +1,8 @@
 package webdata;
 
-import static webdata.IndexDir.REVIEWS_DIR;
+import static webdata.IndexDirs.REVIEWS_DIR;
 
-public enum IndexFile {
+public enum IndexFiles {
     REVIEWS_LENGTH_FILE(REVIEWS_DIR + "/" + "reviewsLength"),
     REVIEWS_NUMERATOR_FILE(REVIEWS_DIR + "/" + "reviewsNumerator"),
     REVIEWS_DENUM_FILE(REVIEWS_DIR + "/" + "reviewsDenominator"),
@@ -13,7 +13,7 @@ public enum IndexFile {
     private final String text;
 
 
-    IndexFile(final String text) {
+    IndexFiles(final String text) {
         this.text = text;
     }
 

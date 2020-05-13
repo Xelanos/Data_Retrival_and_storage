@@ -7,7 +7,7 @@ import webdata.Compress.OneByteCompressor;
 import java.io.*;
 import java.util.*;
 
-import static webdata.IndexFile.*;
+import static webdata.IndexFiles.*;
 
 public class IndexReader {
 

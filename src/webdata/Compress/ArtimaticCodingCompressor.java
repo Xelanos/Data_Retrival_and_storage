@@ -53,7 +53,7 @@ public class ArtimaticCodingCompressor<T extends Comparable<T>> implements Seria
         return null;
     }
 
-    private List<T> artimaticDecode(double numberOfSymbolsEncoded, double code) {
+    public List<T> artimaticDecode(double numberOfSymbolsEncoded, double code) {
         double low = 0;
         double high = 1;
 

@@ -1,13 +1,13 @@
 package webdata;
 
-public enum IndexDir {
+public enum IndexDirs {
     REVIEWS_DIR("reviews");
 
 
     private final String text;
 
 
-    IndexDir(final String text) {
+    IndexDirs(final String text) {
         this.text = text;
     }
 

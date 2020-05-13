@@ -1,5 +1,7 @@
 package webdata;
 
+import webdata.Compress.AdaptiveAritmaticCompressor;
+import webdata.Compress.ArtimaticCodingCompressor;
 import webdata.Compress.FixedBitCompressor;
 import webdata.Compress.OneByteCompressor;
 import webdata.dictionary.ReviewsData;
@@ -11,7 +13,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static webdata.IndexFile.*;
+import static webdata.IndexFiles.*;
 
 
 public class SlowIndexWriter {
@@ -86,12 +88,12 @@ public class SlowIndexWriter {
 
             File mainDir = new File(dir);
             mainDir.mkdir();
-            for (IndexDir directory : IndexDir.values()) {
+            for (IndexDirs directory : IndexDirs.values()) {
                 File f = new File(dir + "/" + directory.toString());
                 f.mkdir();
             }
 
-            for (IndexFile file : IndexFile.values()) {
+            for (IndexFiles file : IndexFiles.values()) {
                 File f = new File(dir + "/" + file.toString());
                 f.createNewFile();
             }
@@ -113,25 +115,71 @@ public class SlowIndexWriter {
         oneByteCompressor.encode(reviewsDenominator.toPrimitiveArray(), dir + "/" + REVIEWS_DENUM_FILE);
         oneByteCompressor.encode(reviewsNumerator.toPrimitiveArray(), dir + "/" + REVIEWS_NUMERATOR_FILE);
 
+        TreeMap<String, CompersableIntArray> newWordDict = new TreeMap<>();
+
+        for (String word : wordsDictionary.keySet()) {
+            CompersableIntArray list = new CompersableIntArray();
+            for (var entry : wordsDictionary.get(word).entrySet()) {
+                list.add(entry.getKey());
+                list.add(entry.getValue());
+            }
+            newWordDict.put(word, list.toGapsEveryTwo());
+        }
+
+        HashMap<Integer, Double> probailities = new HashMap<>();
+        int numberOfElements = 0;
+        for (CompersableIntArray list : newWordDict.values()) {
+            for (Integer number : list) {
+                if (!probailities.containsKey(number)) {
+                    probailities.put(number, 0.0);
+                }
+                probailities.put(number, probailities.get(number) + 1);
+                numberOfElements++;
+            }
+        }
+
+        for (Map.Entry<Integer, Double> entry : probailities.entrySet()) {
+            entry.setValue(entry.getValue() / numberOfElements);
+        }
+
+        ArtimaticCodingCompressor<Integer> a = new ArtimaticCodingCompressor<>(probailities);
+        a.saveProbabilitiesTable(dir + "/" + TEST_FILE);
+
+
+        TreeMap<String, double[]> finalDict = new TreeMap<>();
+        for (var entry : newWordDict.entrySet()) {
+            finalDict.put(entry.getKey(), a.encode(entry.getValue().toArray(new Integer[0]), "a"));
+        }
+
+
+        Set<Integer> keyset = new HashSet<>(probailities.keySet());
+        AdaptiveAritmaticCompressor<Integer> code = new AdaptiveAritmaticCompressor<>(keyset);
+        double[] res = code.encode(newWordDict.get("0").toArray(new Integer[0]), "A");
+
+        AdaptiveAritmaticCompressor<Integer> decode = new AdaptiveAritmaticCompressor<>(keyset);
+        var decoded = decode.artimaticDecode(res[0], res[1]);
+
+
+
 
         System.out.println("g");
 
         Trie<ReviewsData> trie = new Trie<>();
         for (var entry : wordsDictionary.entrySet()) {
-            trie.add(entry.getKey(), new ReviewsData(entry.getValue().size()));
+            trie.add(entry.getKey(), new ReviewsData(entry.getValue().size(), 3));
 
         }
+
 
 
 //        ArtimaticCodingCompressor<Integer> writer = new ArtimaticCodingCompressor<Integer>();
 //        double[] code = writer.encode(reviewsLength.toGapsArray(), "d");
 //        writer.saveProbabilitiesTable(dir +"/" + IndexFile.REVIEWS_LENGTH + "Arit");
         try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + TEST_FILE);
-             ObjectOutputStream out = new ObjectOutputStream(fileOut)){
+             ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
             out.writeObject(trie);
 
-        }
-        catch (IOException e){
+        } catch (IOException e) {
             System.err.println("Couldn't save probabilities");
             e.printStackTrace();
         }
@@ -234,13 +282,13 @@ public class SlowIndexWriter {
      * Delete all index files by removing the given directory
      */
     public void removeIndex(String dir) {
-        for (IndexFile file : IndexFile.values()) {
+        for (IndexFiles file : IndexFiles.values()) {
             File f = new File(dir + "/" + file.toString());
             f.delete();
         }
 
 
-        for (IndexDir directory : IndexDir.values()) {
+        for (IndexDirs directory : IndexDirs.values()) {
             File f = new File(dir + "/" + directory.toString());
             f.delete();
         }
