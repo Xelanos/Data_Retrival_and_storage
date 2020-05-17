@@ -3,6 +3,7 @@ package webdata;
 import webdata.Compress.FixedBitCompressor;
 import webdata.Compress.GroupVarintCompressor;
 import webdata.Compress.OneByteCompressor;
+import webdata.Compress.TwoByteCompressor;
 
 import java.io.*;
 import java.util.*;
@@ -15,6 +16,7 @@ public class IndexReader {
     private GroupVarintCompressor groupVarintReader = new GroupVarintCompressor();
     private FixedBitCompressor fixedBitReader = new FixedBitCompressor();
     private OneByteCompressor oneByteReader = new OneByteCompressor();
+    private TwoByteCompressor twoByteReader = new TwoByteCompressor();
 
 
     /**
@@ -38,7 +40,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
-        return fixedBitReader.decode(indexDirectory + "/" + REVIEWS_SCORE_FILE)[reviewId];
+        return fixedBitReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_SCORE_FILE, reviewId);
     }
 
     /**
@@ -46,7 +48,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
-        return oneByteReader.decode(indexDirectory + "/" + REVIEWS_NUMERATOR_FILE)[reviewId];
+        return oneByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_NUMERATOR_FILE, reviewId);
     }
 
     /**
@@ -54,7 +56,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
-        return oneByteReader.decode(indexDirectory + "/" + REVIEWS_DENUM_FILE)[reviewId];
+        return oneByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_DENUM_FILE, reviewId);
     }
 
     /**
@@ -62,20 +64,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
-        try {
-            DataInputStream in = new DataInputStream(new FileInputStream(indexDirectory + "/" + REVIEWS_LENGTH_FILE + "Code"));
-            double numberOfElements = in.readDouble();
-            double code = in.readDouble();
-            System.out.println("code");
-
-
-        }
-        catch (IOException e) {
-            System.err.println("Problem when reading the file");
-            e.printStackTrace();
-        }
-        return 1;
-
+        return twoByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_LENGTH_FILE, reviewId);
     }
 
     /**
@@ -102,9 +91,13 @@ public class IndexReader {
      * Note that the integers should be sorted by id
      * <p>
      * Returns an empty Enumeration if there are no reviews containing this token
-     * /
-     * public Enumeration<Integer> getReviewsWithToken(String token) {}
-     * /**
+     */
+    public Enumeration<Integer> getReviewsWithToken(String token) {
+        return Collections.enumeration(new ArrayList<Integer>());
+    }
+
+
+    /**
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {

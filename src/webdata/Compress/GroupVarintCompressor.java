@@ -77,7 +77,7 @@ public class GroupVarintCompressor implements IntCompressor{
     }
 
 
-    public int[] decode(String file) {
+    public int[] decodeAll(String file) {
         ArrayList<Integer> decodedList = new ArrayList<>();
         int index = 0;
         try {
@@ -91,6 +91,11 @@ public class GroupVarintCompressor implements IntCompressor{
             e.printStackTrace();
         }
         return decodedList.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    @Override
+    public int decodeAtIndex(String file, long index) {
+        return 0;
     }
 
     private int decodeGroupAtIndex(int index, byte[] allbytes, ArrayList<Integer> decodedList) {

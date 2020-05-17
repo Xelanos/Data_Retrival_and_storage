@@ -10,7 +10,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collector;
 
 import static webdata.IndexFiles.*;
 
@@ -105,7 +104,9 @@ public class SlowIndexWriter {
 
     }
 
-    private void writeToDisk(String dir) throws IOException {
+    private void writeToDisk(String dir) throws IOException{
+
+        IndexReader reader = new IndexReader(dir);
 
         FixedBitCompressor fixedBitCompressor = new FixedBitCompressor();
         fixedBitCompressor.encode(reviewsScore.toPrimitiveArray(), dir + "/" + REVIEWS_SCORE_FILE);
@@ -113,6 +114,9 @@ public class SlowIndexWriter {
         OneByteCompressor oneByteCompressor = new OneByteCompressor();
         oneByteCompressor.encode(reviewsDenominator.toPrimitiveArray(), dir + "/" + REVIEWS_DENUM_FILE);
         oneByteCompressor.encode(reviewsNumerator.toPrimitiveArray(), dir + "/" + REVIEWS_NUMERATOR_FILE);
+
+        TwoByteCompressor twoByteCompressor = new TwoByteCompressor();
+        twoByteCompressor.encode(reviewsLength.toPrimitiveArray(), dir + "/" + REVIEWS_LENGTH_FILE);
 
         TreeMap<String, CompersableIntArray> newWordDict = new TreeMap<>();
 
@@ -164,7 +168,7 @@ public class SlowIndexWriter {
         Collections.sort(keysetLit);
         codesym.encode(Arrays.stream(keysetLit.toGapsArray()).mapToInt(Integer::intValue).toArray(), dir + "/" + TEST_FILE);
 
-        var c = codesym.decode(dir + "/" + TEST_FILE);
+        var gg = codesym.decodeAll(dir + "/" + TEST_FILE);
 
 
 

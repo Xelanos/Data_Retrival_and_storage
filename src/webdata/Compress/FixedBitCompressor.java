@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
-public class FixedBitCompressor implements IntCompressor {
+public class FixedBitCompressor extends NonParameterComperrsor {
 
 
     @Override
@@ -65,7 +65,7 @@ public class FixedBitCompressor implements IntCompressor {
 
 
     @Override
-    public int[] decode(String file) {
+    public int[] decodeAll(String file) {
         ArrayList<Integer> result = new ArrayList<>();
         try {
             byte[] bytes = Files.readAllBytes(Paths.get(file));
@@ -85,5 +85,24 @@ public class FixedBitCompressor implements IntCompressor {
             e.printStackTrace();
         }
         return result.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    @Override
+    protected int numberOfBytesNeededForOneNumber(long index) {
+        return 1;
+    }
+
+    @Override
+    protected long getFromByte(long index) {
+        return index / 2;
+    }
+
+    @Override
+    protected int decodeOne(byte[] bytes, long index) {
+        byte twoNums = bytes[0];
+        if (index % 2 == 0) {
+            return (twoNums >> 5) & 7;
+        }
+        else return (twoNums >> 2) & 7;
     }
 }

@@ -7,5 +7,7 @@ public interface IntCompressor {
 
     abstract void encode(int[] array, String file);
 
-    abstract int[] decode(String file);
+    abstract int[] decodeAll(String file);
+
+    abstract int decodeAtIndex(String file, long index);
 }

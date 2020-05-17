@@ -5,7 +5,7 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-public class OneByteCompressor implements IntCompressor{
+public class OneByteCompressor extends NonParameterComperrsor{
 
     @Override
     public void encode(int[] array, String file) {
@@ -23,7 +23,7 @@ public class OneByteCompressor implements IntCompressor{
     }
 
     @Override
-    public int[] decode(String file) {
+    public int[] decodeAll(String file) {
         byte[] bytes;
         try {
             bytes = Files.readAllBytes(Paths.get(file));
@@ -37,5 +37,20 @@ public class OneByteCompressor implements IntCompressor{
             result[i] = bytes[i];
         }
         return result;
+    }
+
+    @Override
+    protected int numberOfBytesNeededForOneNumber(long index) {
+        return 1;
+    }
+
+    @Override
+    protected long getFromByte(long index) {
+        return index;
+    }
+
+    @Override
+    protected int decodeOne(byte[] bytes, long index) {
+        return bytes[0];
     }
 }
