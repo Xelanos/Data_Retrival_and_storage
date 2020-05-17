@@ -1,38 +1,45 @@
 package webdata.Compress;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.math.RoundingMode;
 import java.util.*;
+import java.math.BigDecimal;
 
 public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
 
-    Map<T, Double> symbolsAppearing;
-    Map<T, Double> symbolsProbabilities;
+    Map<T, BigDecimal> symbolsAppearing;
+    Map<T, BigDecimal> symbolsProbabilities;
     double numberOfSymbolsEncoded;
     Set<T> possibleSymbols;
-    double seenSymbols;
+    int seenSymbols;
+    int scale;
 
     public AdaptiveAritmaticCompressor(Set<T> possibleSymbols) {
         this.possibleSymbols = possibleSymbols;
         makeMaps();
     }
 
-    public double[] encode(T[] array, String file) {
+    public BigDecimal[] encode(T[] array, String file) {
         this.numberOfSymbolsEncoded = array.length;
-        double low = 0;
-        double high = 1;
+        BigDecimal low = new BigDecimal(0);
+        BigDecimal high = new BigDecimal(1);
         for (T symbol : array) {
-            double[] newProbs = restrict(low, high, symbol);
+            BigDecimal[] newProbs = restrict(low, high, symbol);
             low = newProbs[0];
             high = newProbs[1];
             updateMaps(symbol);
         }
-        return new double[]{array.length, low};
+        return new BigDecimal[]{new BigDecimal(array.length), low};
 
     }
 
     private void updateMaps(T symbol){
         seenSymbols += 1;
-        symbolsAppearing.put(symbol, symbolsAppearing.get(symbol) + 1);
-        symbolsProbabilities.replaceAll((k, v) -> symbolsAppearing.get(k) / seenSymbols);
+        symbolsAppearing.put(symbol, symbolsAppearing.get(symbol).add(BigDecimal.valueOf(1)));
+        BigDecimal numSymbols = new BigDecimal(seenSymbols);
+        symbolsProbabilities.replaceAll((k, v) -> symbolsAppearing.get(k).divide(numSymbols, scale, RoundingMode.HALF_DOWN));
 
     }
 
@@ -44,42 +51,42 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
         symbolsAppearing = new HashMap<>();
         for (T symbol : possibleSymbols){
             seenSymbols += 1;
-            symbolsProbabilities.put(symbol, 1.0 / possibleSymbols.size());
-            symbolsAppearing.put(symbol, 1.0);
+            symbolsProbabilities.put(symbol, BigDecimal.valueOf(1.0 / possibleSymbols.size()));
+            symbolsAppearing.put(symbol, new BigDecimal(1));
 
         }
+        this.scale = symbolsProbabilities.get(possibleSymbols.toArray()[0]).scale() * 3;
 
     }
 
-    private double[] restrict(double low, double high, T symbol) {
-        double range = high - low;
+    private BigDecimal[] restrict(BigDecimal low, BigDecimal high, T symbol) {
+        BigDecimal range = high.subtract(low);
 
-        double symbolProb = symbolsProbabilities.get(symbol);
-        double lowBound = symbolsProbabilities.entrySet().stream().
+        BigDecimal symbolProb = symbolsProbabilities.get(symbol);
+        BigDecimal lowBound = symbolsProbabilities.entrySet().stream().
                 filter(entry -> entry.getKey().compareTo(symbol) < 0).
-                map(Map.Entry::getValue).mapToDouble(Double::doubleValue)
-                .sum();
+                map(Map.Entry::getValue).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        double highBound = lowBound + symbolProb;
-        double newLow = low + (range * lowBound);
-        double newHigh = low + (range * highBound);
+        BigDecimal highBound = lowBound.add(symbolProb);
+        BigDecimal newLow = low.add(range.multiply(lowBound)).setScale(scale, RoundingMode.DOWN);
+        BigDecimal newHigh = low.add(range.multiply(highBound)).setScale(scale, RoundingMode.DOWN);
 
-        return new double[]{newLow, newHigh};
+        return new BigDecimal[]{newLow, newHigh};
 
     }
 
-    public List<T> artimaticDecode(double numberOfSymbolsEncoded, double code) {
-        double low = 0;
-        double high = 1;
+    public List<T> artimaticDecode(BigDecimal numberOfSymbolsEncoded, BigDecimal code) {
+        BigDecimal low = new BigDecimal(0);
+        BigDecimal high = new BigDecimal(1);
 
         ArrayList<T> result = new ArrayList<>();
 
-        for (int i = 0; i < numberOfSymbolsEncoded; i++) {
+        for (int i = 0; i < numberOfSymbolsEncoded.intValue(); i++) {
             for (T symbol: symbolsProbabilities.keySet()){
-                double[] newProbs = restrict(low, high, symbol);
-                double newLow = newProbs[0];
-                double newHigh = newProbs[1];
-                if ((code >= newLow) && (code < newHigh)){
+                BigDecimal[] newProbs = restrict(low, high, symbol);
+                BigDecimal newLow = newProbs[0];
+                BigDecimal newHigh = newProbs[1];
+                if ((code.compareTo(newLow) >= 0) && (code.compareTo(newHigh) < 0)){
                     result.add(symbol);
                     low = newLow;
                     high = newHigh;
@@ -90,6 +97,18 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
             }
         }
         return result;
+    }
+
+    public void savePossibleSymbols(String file){
+        try (FileOutputStream fileOut = new FileOutputStream(file);
+             ObjectOutputStream out = new ObjectOutputStream(fileOut)){
+            out.writeObject(this.possibleSymbols);
+
+        }
+        catch (IOException e){
+            System.err.println("Couldn't save probabilities");
+            e.printStackTrace();
+        }
     }
 
 }

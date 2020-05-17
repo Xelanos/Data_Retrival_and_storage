@@ -1,17 +1,16 @@
 package webdata;
 
-import webdata.Compress.AdaptiveAritmaticCompressor;
-import webdata.Compress.ArtimaticCodingCompressor;
-import webdata.Compress.FixedBitCompressor;
-import webdata.Compress.OneByteCompressor;
+import webdata.Compress.*;
 import webdata.dictionary.ReviewsData;
 import webdata.dictionary.Trie;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
 
 import static webdata.IndexFiles.*;
 
@@ -72,7 +71,7 @@ public class SlowIndexWriter {
             runningReviewIndex++;
         }
 
-        numberOfReviews = runningReviewIndex + 1;
+        numberOfReviews = runningReviewIndex;
 
         try {
             writeToDisk(dir);
@@ -143,7 +142,6 @@ public class SlowIndexWriter {
         }
 
         ArtimaticCodingCompressor<Integer> a = new ArtimaticCodingCompressor<>(probailities);
-        a.saveProbabilitiesTable(dir + "/" + TEST_FILE);
 
 
         TreeMap<String, double[]> finalDict = new TreeMap<>();
@@ -154,10 +152,19 @@ public class SlowIndexWriter {
 
         Set<Integer> keyset = new HashSet<>(probailities.keySet());
         AdaptiveAritmaticCompressor<Integer> code = new AdaptiveAritmaticCompressor<>(keyset);
-        double[] res = code.encode(newWordDict.get("0").toArray(new Integer[0]), "A");
+        BigDecimal[] res = code.encode(newWordDict.get("0").toArray(new Integer[0]), "A");
+//        code.savePossibleSymbols(dir + "/" + TEST_FILE);
 
         AdaptiveAritmaticCompressor<Integer> decode = new AdaptiveAritmaticCompressor<>(keyset);
         var decoded = decode.artimaticDecode(res[0], res[1]);
+
+        GroupVarintCompressor codesym = new GroupVarintCompressor();
+        var keysetLit = new CompersableIntArray();
+        keysetLit.addAll(keyset);
+        Collections.sort(keysetLit);
+        codesym.encode(Arrays.stream(keysetLit.toGapsArray()).mapToInt(Integer::intValue).toArray(), dir + "/" + TEST_FILE);
+
+        var c = codesym.decode(dir + "/" + TEST_FILE);
 
 
 
@@ -177,7 +184,7 @@ public class SlowIndexWriter {
 //        writer.saveProbabilitiesTable(dir +"/" + IndexFile.REVIEWS_LENGTH + "Arit");
         try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + TEST_FILE);
              ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
-            out.writeObject(trie);
+            out.writeObject(res[1]);
 
         } catch (IOException e) {
             System.err.println("Couldn't save probabilities");
@@ -312,10 +319,5 @@ public class SlowIndexWriter {
         return lines.toString();
     }
 
-    private void makeAndSetDirectory(String dir) {
-
-        this.indexDirectory = dir;
-
-    }
 
 }
