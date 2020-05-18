@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static webdata.IndexFiles.*;
 
@@ -25,10 +26,11 @@ public class SlowIndexWriter {
     private TreeMap<String, TreeMap<Integer, Integer>> wordsDictionary = new TreeMap<>();
     private TreeMap<String, TreeSet<Integer>> productIdDictionary = new TreeMap<>();
 
-    private CompersableIntArray reviewsLength = new CompersableIntArray();
-    private CompersableIntArray reviewsDenominator = new CompersableIntArray();
-    private CompersableIntArray reviewsNumerator = new CompersableIntArray();
-    private CompersableIntArray reviewsScore = new CompersableIntArray();
+    private CustomIntList reviewsLength = new CustomIntList();
+    private CustomIntList reviewsDenominator = new CustomIntList();
+    private CustomIntList reviewsNumerator = new CustomIntList();
+    private CustomIntList reviewsScore = new CustomIntList();
+    private BitMapProductId productDict = new BitMapProductId();
 
     private int numberOfReviews;
     private String indexDirectory;
@@ -64,13 +66,13 @@ public class SlowIndexWriter {
         }
 
         //Indexing file
-        int runningReviewIndex = 0;
+        int runningReviewIndex = 1;
         for (String review : reviews.split("\n\n")) {
             index(review, runningReviewIndex);
             runningReviewIndex++;
         }
 
-        numberOfReviews = runningReviewIndex;
+        numberOfReviews = runningReviewIndex - 1;
 
         try {
             writeToDisk(dir);
@@ -104,9 +106,21 @@ public class SlowIndexWriter {
 
     }
 
-    private void writeToDisk(String dir) throws IOException{
+    private void writeToDisk(String dir) throws IOException {
 
-        IndexReader reader = new IndexReader(dir);
+        FileWriter numOfreviewsWrite = new FileWriter(dir + "/" + NUMBER_OF_REVIEWS);
+        numOfreviewsWrite.write(Integer.valueOf(numberOfReviews).toString());
+        numOfreviewsWrite.close();
+
+        int totalTokenCount = reviewsLength.stream().mapToInt(Integer::intValue).sum();
+        FileWriter numOfTokensWrite = new FileWriter(dir + "/" + TOTAL_TOKEN_COUNT_FILE);
+        numOfTokensWrite.write(Integer.valueOf(totalTokenCount).toString());
+        numOfTokensWrite.close();
+
+
+
+
+        productDict.writeTofiles(dir +"/" + REVIEWS_PRODUCT_BITMAP_FILE, dir+"/" + REVIEWS_PRODUCT_ORDER_FILE);
 
         FixedBitCompressor fixedBitCompressor = new FixedBitCompressor();
         fixedBitCompressor.encode(reviewsScore.toPrimitiveArray(), dir + "/" + REVIEWS_SCORE_FILE);
@@ -118,85 +132,73 @@ public class SlowIndexWriter {
         TwoByteCompressor twoByteCompressor = new TwoByteCompressor();
         twoByteCompressor.encode(reviewsLength.toPrimitiveArray(), dir + "/" + REVIEWS_LENGTH_FILE);
 
-        TreeMap<String, CompersableIntArray> newWordDict = new TreeMap<>();
+        TreeMap<String, CustomIntList> newWordDict = new TreeMap<>();
 
         for (String word : wordsDictionary.keySet()) {
-            CompersableIntArray list = new CompersableIntArray();
+            CustomIntList list = new CustomIntList();
             for (var entry : wordsDictionary.get(word).entrySet()) {
                 list.add(entry.getKey());
                 list.add(entry.getValue());
             }
-            newWordDict.put(word, list.toGapsEveryTwo());
+            newWordDict.put(word, list);
         }
 
-        HashMap<Integer, Double> probailities = new HashMap<>();
-        int numberOfElements = 0;
-        for (CompersableIntArray list : newWordDict.values()) {
-            for (Integer number : list) {
-                if (!probailities.containsKey(number)) {
-                    probailities.put(number, 0.0);
-                }
-                probailities.put(number, probailities.get(number) + 1);
-                numberOfElements++;
-            }
-        }
-
-        for (Map.Entry<Integer, Double> entry : probailities.entrySet()) {
-            entry.setValue(entry.getValue() / numberOfElements);
-        }
-
-        ArtimaticCodingCompressor<Integer> a = new ArtimaticCodingCompressor<>(probailities);
+        Set<Integer> keyset = newWordDict.values()
+                .stream()
+                .flatMap(list -> list.toGapsEveryTwo().stream())
+                .collect(Collectors.toSet());
 
 
-        TreeMap<String, double[]> finalDict = new TreeMap<>();
-        for (var entry : newWordDict.entrySet()) {
-            finalDict.put(entry.getKey(), a.encode(entry.getValue().toArray(new Integer[0]), "a"));
-        }
+        CustomIntList numOfReviewsCoded = new CustomIntList();
+        ArrayList<BigDecimal> codes = new ArrayList<>();
 
-
-        Set<Integer> keyset = new HashSet<>(probailities.keySet());
-        AdaptiveAritmaticCompressor<Integer> code = new AdaptiveAritmaticCompressor<>(keyset);
-        BigDecimal[] res = code.encode(newWordDict.get("0").toArray(new Integer[0]), "A");
-//        code.savePossibleSymbols(dir + "/" + TEST_FILE);
-
-        AdaptiveAritmaticCompressor<Integer> decode = new AdaptiveAritmaticCompressor<>(keyset);
-        var decoded = decode.artimaticDecode(res[0], res[1]);
-
-        GroupVarintCompressor codesym = new GroupVarintCompressor();
-        var keysetLit = new CompersableIntArray();
-        keysetLit.addAll(keyset);
-        Collections.sort(keysetLit);
-        codesym.encode(Arrays.stream(keysetLit.toGapsArray()).mapToInt(Integer::intValue).toArray(), dir + "/" + TEST_FILE);
-
-        var gg = codesym.decodeAll(dir + "/" + TEST_FILE);
-
-
-
-
-        System.out.println("g");
+        AdaptiveAritmaticCompressor<Integer> enc = new AdaptiveAritmaticCompressor<>(keyset);
+        enc.savePossibleSymbols(dir + "/" + REVERSE_INDEX_KEYSET_FILE);
 
         Trie<ReviewsData> trie = new Trie<>();
-        for (var entry : wordsDictionary.entrySet()) {
-            trie.add(entry.getKey(), new ReviewsData(entry.getValue().size(), 3));
-
+        int postingListIndex = 0;
+        for (var entry : newWordDict.entrySet()) {
+            AdaptiveAritmaticCompressor<Integer> encoder = new AdaptiveAritmaticCompressor<>(keyset);
+            encoder.setScale(entry.getValue().size() * 2);
+            numOfReviewsCoded.add(entry.getValue().size() / 2);
+            var code = encoder.encode(entry.getValue().toGapsEveryTwo().toArray(new Integer[0]), "a");
+            codes.add(code[1]);
+            trie.add(entry.getKey(), new ReviewsData(calculateFreqFromList(entry.getValue()), postingListIndex));
+            postingListIndex++;
         }
 
 
+        twoByteCompressor.encode(numOfReviewsCoded.toPrimitiveArray(), dir + "/" + REVIEWS_CONTATING_TOKEN_FILE);
 
-//        ArtimaticCodingCompressor<Integer> writer = new ArtimaticCodingCompressor<Integer>();
-//        double[] code = writer.encode(reviewsLength.toGapsArray(), "d");
-//        writer.saveProbabilitiesTable(dir +"/" + IndexFile.REVIEWS_LENGTH + "Arit");
-        try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + TEST_FILE);
+
+
+        try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + DICTIONARY_FILE);
              ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
-            out.writeObject(res[1]);
+            out.writeObject(trie);
 
         } catch (IOException e) {
             System.err.println("Couldn't save probabilities");
             e.printStackTrace();
         }
-//        GroupVarintCompressor writer = new GroupVarintCompressor();
-//        writer.encode(reviewsLength.toPrimitiveArray(), dir + "/" + IndexFile.REVIEWS_LENGTH);
 
+        try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + REVERSE_INDEX_CODES_FILE);
+             ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
+            out.writeObject(codes);
+
+        } catch (IOException e) {
+            System.err.println("Couldn't save probabilities");
+            e.printStackTrace();
+        }
+
+
+    }
+
+    private int calculateFreqFromList(CustomIntList list) {
+        int freq = 0;
+        for (int i = 1; i < list.size(); i+=2) {
+            freq += list.get(i);
+        }
+        return freq;
     }
 
     private void index(String review, int reviewIndex) {
@@ -252,10 +254,6 @@ public class SlowIndexWriter {
         }
         String[] words = text.toLowerCase().split("[^a-zA-Z\\d]");
 
-//        System.out.println(review + "\n");
-//        System.out.printf("productId : %s\nhelpfulness: %d/%d \nscore: %d\n\n",
-//                productID, helpfulnessNumerator, helpfulnessDenominator, score);
-
         fillDataHolders(reviewIndex, productID, helpfulnessNumerator, helpfulnessDenominator, score, words);
 
 
@@ -268,6 +266,7 @@ public class SlowIndexWriter {
         reviewsNumerator.add(helpfulnessNumerator);
         reviewsDenominator.add(helpfulnessDenominator);
         reviewsScore.add(score);
+        productDict.add(productID);
 
         if (!productIdDictionary.containsKey(productID)) {
             productIdDictionary.put(productID, new TreeSet<>());

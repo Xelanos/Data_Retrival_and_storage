@@ -1,11 +1,11 @@
 package webdata;
 
-import webdata.Compress.FixedBitCompressor;
-import webdata.Compress.GroupVarintCompressor;
-import webdata.Compress.OneByteCompressor;
-import webdata.Compress.TwoByteCompressor;
+import webdata.Compress.*;
+import webdata.dictionary.ReviewsData;
+import webdata.dictionary.Trie;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.util.*;
 
 import static webdata.IndexFiles.*;
@@ -17,6 +17,11 @@ public class IndexReader {
     private FixedBitCompressor fixedBitReader = new FixedBitCompressor();
     private OneByteCompressor oneByteReader = new OneByteCompressor();
     private TwoByteCompressor twoByteReader = new TwoByteCompressor();
+    private BitMapProductId productId = new BitMapProductId();
+
+    private Trie<ReviewsData> dictionary;
+    int numberOfreviews;
+    int allTokenCount;
 
 
     /**
@@ -25,6 +30,37 @@ public class IndexReader {
      */
     public IndexReader(String dir) {
         this.indexDirectory = dir;
+
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(dir + "/" + NUMBER_OF_REVIEWS));
+            this.numberOfreviews = Integer.parseInt(reader.readLine());
+        } catch (IOException e) {
+            System.err.println("couldn't read num of reviews, setting to 0");
+            e.printStackTrace();
+            this.numberOfreviews = 0;
+        }
+
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(dir + "/" + TOTAL_TOKEN_COUNT_FILE));
+            this.allTokenCount = Integer.parseInt(reader.readLine());
+        } catch (IOException e) {
+            System.err.println("couldn't read num of tokens, setting to 0");
+            e.printStackTrace();
+            this.allTokenCount = 0;
+        }
+
+
+        ObjectInputStream ois = null;
+        try {
+            ois = new ObjectInputStream(new FileInputStream(dir + "/" + DICTIONARY_FILE));
+            this.dictionary = (Trie<ReviewsData>) ois.readObject();
+        } catch (Exception e) {
+            System.err.println("Couldn't read dictionary file, will fail all dictionary related function");
+            e.printStackTrace();
+        }
+
+
+        productId.readBinrayString(indexDirectory + "/" + REVIEWS_PRODUCT_BITMAP_FILE);
     }
 
     /**
@@ -32,7 +68,9 @@ public class IndexReader {
      * Returns null if there is no review with the given identifier
      */
     public String getProductId(int reviewId) {
-        return "0";
+        reviewId -= 1;
+        if (reviewId < 0 || reviewId > numberOfreviews) return null;
+        return productId.decodeAtIndex(indexDirectory + "/" + REVIEWS_PRODUCT_ORDER_FILE, reviewId);
     }
 
     /**
@@ -40,6 +78,8 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
+        reviewId -= 1;
+        if (reviewId < 0 || reviewId > numberOfreviews) return -1;
         return fixedBitReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_SCORE_FILE, reviewId);
     }
 
@@ -48,6 +88,8 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
+        reviewId -= 1;
+        if (reviewId < 0 || reviewId > numberOfreviews) return -1;
         return oneByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_NUMERATOR_FILE, reviewId);
     }
 
@@ -56,6 +98,8 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
+        reviewId -= 1;
+        if (reviewId < 0 || reviewId > numberOfreviews) return -1;
         return oneByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_DENUM_FILE, reviewId);
     }
 
@@ -64,6 +108,8 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
+        reviewId -= 1;
+        if (reviewId < 0 || reviewId > numberOfreviews) return -1;
         return twoByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_LENGTH_FILE, reviewId);
     }
 
@@ -72,7 +118,11 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        return 0;
+        var node = dictionary.find(token);
+        if (node == null) {
+            return 0;
+        }
+        return twoByteReader.decodeAtIndex(indexDirectory + "/" + REVIEWS_CONTATING_TOKEN_FILE, node.getData().postingListPointer);
     }
 
     /**
@@ -81,7 +131,11 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenCollectionFrequency(String token) {
-        return 0;
+        var node = dictionary.find(token);
+        if (node == null) {
+            return 0;
+        }
+        return node.getData().freq;
     }
 
     /**
@@ -93,7 +147,36 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews containing this token
      */
     public Enumeration<Integer> getReviewsWithToken(String token) {
-        return Collections.enumeration(new ArrayList<Integer>());
+        var node = dictionary.find(token);
+        if (node == null) {
+            return Collections.enumeration(new ArrayList<Integer>());
+        }
+
+        int pointer = node.getData().postingListPointer;
+
+        ArrayList<BigDecimal> codes;
+        Set<Integer> keyset;
+        ObjectInputStream ois = null;
+        try {
+            ois = new ObjectInputStream(new FileInputStream(indexDirectory + "/" + REVERSE_INDEX_CODES_FILE));
+            codes = (ArrayList<BigDecimal>) ois.readObject();
+
+            ois = new ObjectInputStream(new FileInputStream(indexDirectory + "/" + REVERSE_INDEX_KEYSET_FILE));
+            keyset = (Set<Integer>) ois.readObject();
+
+        } catch (Exception e) {
+            System.err.println("Couldn't read codes files");
+            e.printStackTrace();
+            return Collections.enumeration(new ArrayList<Integer>());
+        }
+
+
+        BigDecimal code = codes.get(pointer);
+        BigDecimal numberOfElements = BigDecimal.valueOf(getTokenFrequency(token) * 2);
+        AdaptiveAritmaticCompressor<Integer> decoder = new AdaptiveAritmaticCompressor<Integer>(keyset);
+        List<Integer> result = CustomIntList.fromGapsEveryTwoIterable(decoder.artimaticDecode(numberOfElements, code));
+
+        return Collections.enumeration(result);
     }
 
 
@@ -101,7 +184,7 @@ public class IndexReader {
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
-        return 0;
+        return numberOfreviews;
     }
 
     /**
@@ -109,7 +192,7 @@ public class IndexReader {
      * (Tokens should be counted as many times as they appear)
      */
     public int getTokenSizeOfReviews() {
-        return 0;
+        return allTokenCount;
     }
 
     /**
@@ -119,13 +202,12 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        try {
-            ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(indexDirectory + "/test.ob"));
-            TreeMap<String, TreeSet<Integer>> dict = (TreeMap) objectInputStream.readObject();
-            return Collections.enumeration(dict.get(productId));
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return Collections.enumeration(new ArrayList<Integer>());
+        List<Integer> result = new ArrayList<>();
+        for (int i = 1; i <= numberOfreviews; i++) {
+            if (getProductId(i).equals(productId)) {
+                result.add(i);
+            }
         }
+        return Collections.enumeration(result);
     }
 }

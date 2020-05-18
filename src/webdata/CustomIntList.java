@@ -8,9 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.stream.IntStream;
 
-public class CompersableIntArray extends ArrayList<Integer> {
-
-    private File inputFile = null;
+public class CustomIntList extends ArrayList<Integer> {
 
 
     public int[] dump(File file) {
@@ -54,8 +52,8 @@ public class CompersableIntArray extends ArrayList<Integer> {
         return differenceList;
     }
 
-    public CompersableIntArray toGapsEveryTwo() {
-        CompersableIntArray gaps = new CompersableIntArray();
+    public CustomIntList toGapsEveryTwo() {
+        CustomIntList gaps = new CustomIntList();
         gaps.add(this.get(0));
         gaps.add(this.get(1));
         for (int i = 2; i < this.size(); i++) {
@@ -67,9 +65,32 @@ public class CompersableIntArray extends ArrayList<Integer> {
         return gaps;
     }
 
-    public void setInputFile(File inputFile) {
-        this.inputFile = inputFile;
+    static CustomIntList fromGapsIterable(Iterable<Integer> array) {
+        CustomIntList result = new CustomIntList();
+        Integer current = 0;
+        for (Integer number : array) {
+            current += number;
+            result.add(current);
+        }
+        return result;
+
     }
+
+    static CustomIntList fromGapsEveryTwoIterable(Iterable<Integer> array) {
+        CustomIntList result = new CustomIntList();
+        Integer memory = 0;
+        int i = 0;
+        for (Integer number : array) {
+            if (i % 2 == 0){
+                memory += number;
+                result.add(memory);
+            } else result.add(number);
+            i++;
+        }
+        return result;
+
+    }
+
 
 
 }

@@ -1,7 +1,9 @@
 package webdata;
 
 public enum IndexDirs {
-    REVIEWS_DIR("reviews");
+    REVIEWS_DATA_DIR("reviews"),
+    WORDS_DICTIONARY_DIR("wordsDict"),
+    ;
 
 
     private final String text;

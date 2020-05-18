@@ -1,8 +1,6 @@
 package webdata.Compress;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.math.RoundingMode;
 import java.util.*;
 import java.math.BigDecimal;
@@ -15,6 +13,14 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
     Set<T> possibleSymbols;
     int seenSymbols;
     int scale;
+
+    protected AdaptiveAritmaticCompressor(){
+
+    }
+
+    public void setScale(int scale) {
+        this.scale = scale;
+    }
 
     public AdaptiveAritmaticCompressor(Set<T> possibleSymbols) {
         this.possibleSymbols = possibleSymbols;
@@ -35,7 +41,7 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
 
     }
 
-    private void updateMaps(T symbol){
+    protected void updateMaps(T symbol){
         seenSymbols += 1;
         symbolsAppearing.put(symbol, symbolsAppearing.get(symbol).add(BigDecimal.valueOf(1)));
         BigDecimal numSymbols = new BigDecimal(seenSymbols);
@@ -45,7 +51,7 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
 
 
 
-    private void makeMaps() {
+    protected void makeMaps() {
         seenSymbols = 0;
         symbolsProbabilities = new HashMap<>();
         symbolsAppearing = new HashMap<>();
@@ -59,7 +65,7 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
 
     }
 
-    private BigDecimal[] restrict(BigDecimal low, BigDecimal high, T symbol) {
+    protected BigDecimal[] restrict(BigDecimal low, BigDecimal high, T symbol) {
         BigDecimal range = high.subtract(low);
 
         BigDecimal symbolProb = symbolsProbabilities.get(symbol);
@@ -76,6 +82,7 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
     }
 
     public List<T> artimaticDecode(BigDecimal numberOfSymbolsEncoded, BigDecimal code) {
+        this.scale = code.scale();
         BigDecimal low = new BigDecimal(0);
         BigDecimal high = new BigDecimal(1);
 

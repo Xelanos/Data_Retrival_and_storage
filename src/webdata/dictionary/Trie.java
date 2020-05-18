@@ -2,7 +2,7 @@ package webdata.dictionary;
 
 import java.io.Serializable;
 
-public class Trie<T> implements Serializable {
+public class Trie<T> implements  Serializable {
 
     private TrieNode<T> root;
     private int size = 0;
@@ -34,6 +34,5 @@ public class Trie<T> implements Serializable {
         }
         return current.isWord()? current : null;
     }
-
 
     }

@@ -3,7 +3,7 @@ package webdata.dictionary;
 import java.io.Serializable;
 import java.util.HashMap;
 
-class TrieNode<T> implements Serializable {
+public class TrieNode<T> implements Serializable {
 
     boolean isWord;
     T data;

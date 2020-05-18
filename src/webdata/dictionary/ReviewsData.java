@@ -4,8 +4,8 @@ import java.io.Serializable;
 
 public class ReviewsData implements Serializable {
 
-    int freq;
-    int postingListPointer;
+    public int freq;
+    public int postingListPointer;
 
     public ReviewsData(int freq, int postingListPointer) {
         this.freq = freq;
