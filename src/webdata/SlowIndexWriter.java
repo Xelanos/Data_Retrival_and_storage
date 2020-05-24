@@ -261,8 +261,7 @@ public class SlowIndexWriter {
 
     private void fillDataHolders(int reviewIndex, String productID, int helpfulnessNumerator, int helpfulnessDenominator,
                                  int score, String[] words) {
-
-        reviewsLength.add(words.length);
+        int reviewLength = 0;
         reviewsNumerator.add(helpfulnessNumerator);
         reviewsDenominator.add(helpfulnessDenominator);
         reviewsScore.add(score);
@@ -275,6 +274,7 @@ public class SlowIndexWriter {
 
         for (String word : words) {
             if (word.equals("")) continue;
+            reviewLength++;
             if (!wordsDictionary.containsKey(word)) {
                 wordsDictionary.put(word, new TreeMap<>());
             }
@@ -284,6 +284,7 @@ public class SlowIndexWriter {
             }
             wordsDictionary.get(word).put(reviewIndex, wordsDictionary.get(word).get(reviewIndex) + 1);
         }
+        reviewsLength.add(reviewLength);
 
     }
 

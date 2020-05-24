@@ -20,6 +20,7 @@ public class BitMapProductId extends BitMapCompress<String> {
 
     public String decodeAtIndex(String file, long index) {
         try {
+            index = countOnesUntilIndex((int) index) - 1;
             RandomAccessFile raf = new RandomAccessFile(file, "r");
 
             long fromByte = index * 10;

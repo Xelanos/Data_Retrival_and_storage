@@ -44,7 +44,7 @@ public abstract class BitMapCompress<T extends Comparable<T>> {
         }
     }
 
-    private int countOnesUntilIndex(int index) {
+    protected int countOnesUntilIndex(int index) {
         int count = 0;
         for (int i = 0; i <= index; i++) {
             if (binaryString.charAt(i) == '1') {
