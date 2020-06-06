@@ -5,7 +5,9 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class TwoByteCompressor  extends NonParameterComperrsor{
 
@@ -27,6 +29,8 @@ public class TwoByteCompressor  extends NonParameterComperrsor{
 
     @Override
     public void encode(int[] array, String file) {
+        byte[] allBytes = new byte[array.length * 2];
+        int i = 0;
         for (int value : array) {
             byte[] bytesToWrite;
             byte[] numberBytes = BigInteger.valueOf(value).toByteArray();
@@ -35,12 +39,15 @@ public class TwoByteCompressor  extends NonParameterComperrsor{
             } else {
                 bytesToWrite = numberBytes;
             }
-            try {
-                Files.write(Paths.get(file), bytesToWrite, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-                System.err.println("Couldn't write the numbers " + Arrays.toString(array) + " to file.");
-                e.printStackTrace();
-            }
+            allBytes[i] = bytesToWrite[0];
+            allBytes[i + 1] = bytesToWrite[1];
+            i += 2;
+        }
+        try {
+            Files.write(Paths.get(file), allBytes, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            System.err.println("Couldn't write the numbers " + Arrays.toString(array) + " to file.");
+            e.printStackTrace();
         }
     }
 
