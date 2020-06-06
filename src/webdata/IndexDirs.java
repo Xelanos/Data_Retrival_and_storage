@@ -3,6 +3,7 @@ package webdata;
 public enum IndexDirs {
     REVIEWS_DATA_DIR("reviews"),
     WORDS_DICTIONARY_DIR("wordsDict"),
+    TEMP("temp"),
     ;
 
 

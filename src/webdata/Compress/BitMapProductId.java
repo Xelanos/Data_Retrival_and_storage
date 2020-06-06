@@ -2,6 +2,7 @@ package webdata.Compress;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 public class BitMapProductId extends BitMapCompress<String> {
 
@@ -15,6 +16,20 @@ public class BitMapProductId extends BitMapCompress<String> {
         FileWriter orderWriter = new FileWriter(orderFile, true);
         orderWriter.write(String.join("", order));
         orderWriter.close();
+
+    }
+
+    public void flush(String bitMapFile, String orderFile) throws IOException {
+        FileWriter bitMapWriter = new FileWriter(bitMapFile, true);
+        bitMapWriter.write(bitMapBuilder.toString());
+        bitMapWriter.close();
+        bitMapBuilder = new StringBuilder();
+
+        FileWriter orderWriter = new FileWriter(orderFile, true);
+        orderWriter.write(String.join("", order));
+        orderWriter.close();
+
+        order = new ArrayList<>();
 
     }
 
