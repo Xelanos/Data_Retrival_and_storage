@@ -8,11 +8,11 @@ public class BitMapProductId extends BitMapCompress<String> {
     private String binaryString;
 
     public void writeTofiles(String bitMapFile, String orderFile) throws IOException {
-        FileWriter bitMapWriter = new FileWriter(bitMapFile);
+        FileWriter bitMapWriter = new FileWriter(bitMapFile, true);
         bitMapWriter.write(bitMapBuilder.toString());
         bitMapWriter.close();
 
-        FileWriter orderWriter = new FileWriter(orderFile);
+        FileWriter orderWriter = new FileWriter(orderFile, true);
         orderWriter.write(String.join("", order));
         orderWriter.close();
 

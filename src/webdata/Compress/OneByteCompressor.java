@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 public class OneByteCompressor extends NonParameterComperrsor{
 
@@ -15,7 +16,7 @@ public class OneByteCompressor extends NonParameterComperrsor{
         }
 
         try {
-            Files.write(Paths.get(file), bytes);
+            Files.write(Paths.get(file), bytes, StandardOpenOption.APPEND);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 
 public class FixedBitCompressor extends NonParameterComperrsor {
@@ -56,7 +57,7 @@ public class FixedBitCompressor extends NonParameterComperrsor {
                 byteArray[index++] = b;
             }
             try {
-                Files.write(Paths.get(file), byteArray);
+                Files.write(Paths.get(file), byteArray, StandardOpenOption.APPEND);
             } catch (IOException e) {
                 System.err.println("Couldn't write to file");
                 e.printStackTrace();
