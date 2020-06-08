@@ -18,10 +18,11 @@ public class IndexReader {
     private OneByteCompressor oneByteReader = new OneByteCompressor();
     private TwoByteCompressor twoByteReader = new TwoByteCompressor();
     private BitMapProductId productId = new BitMapProductId();
+    private RandomAccessFile postingListRandomReader;
 
     private Trie<ReviewsData> dictionary;
     int numberOfreviews;
-    int allTokenCount;
+    long allTokenCount;
 
 
     /**
@@ -42,7 +43,7 @@ public class IndexReader {
 
         try {
             BufferedReader reader = new BufferedReader(new FileReader(dir + "/" + TOTAL_TOKEN_COUNT_FILE));
-            this.allTokenCount = Integer.parseInt(reader.readLine());
+            this.allTokenCount = Long.parseLong(reader.readLine());
         } catch (IOException e) {
             System.err.println("couldn't read num of tokens, setting to 0");
             e.printStackTrace();
@@ -56,6 +57,13 @@ public class IndexReader {
             this.dictionary = (Trie<ReviewsData>) ois.readObject();
         } catch (Exception e) {
             System.err.println("Couldn't read dictionary file, will fail all dictionary related function");
+            e.printStackTrace();
+        }
+
+        try {
+            postingListRandomReader = new RandomAccessFile(dir + "/" + REVERSE_INDEX_CODES_FILE, "r");
+        } catch (FileNotFoundException e) {
+            System.err.println("Couldn't read posting list file");
             e.printStackTrace();
         }
 
@@ -152,31 +160,22 @@ public class IndexReader {
             return Collections.enumeration(new ArrayList<Integer>());
         }
 
-        int pointer = node.getData().postingListPointer;
+        long start = node.getData().postingListStart;
+        long end = node.getData().postingListEnd;
 
-        ArrayList<BigDecimal> codes;
-        Set<Integer> keyset;
-        ObjectInputStream ois = null;
+        byte[] coded = new byte[(int) (end - start)];
         try {
-            ois = new ObjectInputStream(new FileInputStream(indexDirectory + "/" + REVERSE_INDEX_CODES_FILE));
-            codes = (ArrayList<BigDecimal>) ois.readObject();
-
-            ois = new ObjectInputStream(new FileInputStream(indexDirectory + "/" + REVERSE_INDEX_KEYSET_FILE));
-            keyset = (Set<Integer>) ois.readObject();
-
-        } catch (Exception e) {
-            System.err.println("Couldn't read codes files");
+            postingListRandomReader.seek(start);
+            postingListRandomReader.read(coded);
+        } catch (IOException e) {
+            System.err.println("Couln't read from codes file");
             e.printStackTrace();
-            return Collections.enumeration(new ArrayList<Integer>());
         }
 
+        var postingList = CustomIntList.fromGapsEveryTwoIterable(groupVarintReader.decodeAllBytes(coded));
+        System.out.println(postingList);
 
-        BigDecimal code = codes.get(pointer);
-        BigDecimal numberOfElements = BigDecimal.valueOf(getTokenFrequency(token) * 2);
-        AdaptiveAritmaticCompressor<Integer> decoder = new AdaptiveAritmaticCompressor<Integer>(keyset);
-        List<Integer> result = CustomIntList.fromGapsEveryTwoIterable(decoder.artimaticDecode(numberOfElements, code));
-
-        return Collections.enumeration(result);
+        return Collections.enumeration(postingList);
     }
 
 
@@ -192,7 +191,7 @@ public class IndexReader {
      * (Tokens should be counted as many times as they appear)
      */
     public int getTokenSizeOfReviews() {
-        return allTokenCount;
+        return (int) allTokenCount;
     }
 
     /**

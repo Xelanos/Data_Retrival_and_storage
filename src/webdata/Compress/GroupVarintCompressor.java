@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class GroupVarintCompressor implements IntCompressor{
     private static final int BUFFER_SIZE = 4096;
@@ -76,6 +77,66 @@ public class GroupVarintCompressor implements IntCompressor{
         }
     }
 
+    public byte[] getEncodedBytes(int[] array){
+
+        List<Byte> result = new ArrayList<>();
+
+        int[] group = new int[NUMBER_OF_GROUPS];
+        int groupIndex = 0;
+        for (int i : array) {
+            group[groupIndex] = i;
+            groupIndex++;
+            if (groupIndex == NUMBER_OF_GROUPS) {
+                result.addAll(getGroupBytes(group));
+                group = new int[NUMBER_OF_GROUPS];
+                groupIndex = 0;
+            }
+
+        }
+        if (groupIndex != 0) {
+            result.addAll(getGroupBytes(Arrays.copyOfRange(group, 0, groupIndex)));
+        }
+
+        byte[] byteArray = new byte[result.size()];
+        int index = 0;
+        for (byte b : result) {
+            byteArray[index++] = b;
+        }
+        return byteArray;
+
+    }
+
+    private List<Byte> getGroupBytes(int[] array){
+        StringBuilder firstByteBitString = new StringBuilder();
+        ArrayList<Byte> bytesToWrite = new ArrayList<>();
+        for (int num : array) {
+            // getting the bytes
+            int numOfBytesRequired = (int) Math.ceil((double) Integer.toBinaryString(num).length() / 8);
+            byte[] bytes = ByteBuffer.allocate(4).putInt(num).array();
+            for (int i = 4 - numOfBytesRequired; i < 4; i++) {
+                bytesToWrite.add(bytes[i]);
+            }
+
+            //Appending to first byte
+            var binaryStringLenghth = Integer.toBinaryString(numOfBytesRequired);
+            if (binaryStringLenghth.equals("1")) {
+                firstByteBitString.append("01");
+            } else if (binaryStringLenghth.equals("100")) {
+                firstByteBitString.append("00");
+            } else {
+                firstByteBitString.append(binaryStringLenghth);
+            }
+
+        }
+        //Pad with zeroes
+        firstByteBitString.append("0".repeat(Math.max(0, 8 - firstByteBitString.length())));
+
+        bytesToWrite.add(0, (byte) Integer.parseInt(firstByteBitString.toString(), 2));
+
+        return bytesToWrite;
+
+    }
+
 
     public int[] decodeAll(String file) {
         ArrayList<Integer> decodedList = new ArrayList<>();
@@ -91,6 +152,16 @@ public class GroupVarintCompressor implements IntCompressor{
             e.printStackTrace();
         }
         return decodedList.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    public List<Integer> decodeAllBytes(byte[] allbytes){
+        ArrayList<Integer> decodedList = new ArrayList<>();
+        int index = 0;
+        while (index < allbytes.length) {
+            index = decodeGroupAtIndex(index, allbytes, decodedList);
+        }
+
+        return decodedList;
     }
 
     @Override

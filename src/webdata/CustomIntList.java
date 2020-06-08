@@ -91,6 +91,17 @@ public class CustomIntList extends ArrayList<Integer> {
 
     }
 
-
+    public static CustomIntList mergeSorted(CustomIntList firstList, CustomIntList secondList){
+        CustomIntList result = new CustomIntList();
+        if (firstList.get(0) < secondList.get(0)){
+            result.addAll(firstList);
+            result.addAll(secondList);
+        }
+        else {
+            result.addAll(secondList);
+            result.addAll(firstList);
+        }
+        return result;
+    }
 
 }

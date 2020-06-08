@@ -29,6 +29,7 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
 
     public BigDecimal[] encode(T[] array, String file) {
         this.numberOfSymbolsEncoded = array.length;
+        this.scale = array.length;
         BigDecimal low = new BigDecimal(0);
         BigDecimal high = new BigDecimal(1);
         for (T symbol : array) {
@@ -45,7 +46,6 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
         seenSymbols += 1;
         symbolsAppearing.put(symbol, symbolsAppearing.get(symbol).add(BigDecimal.valueOf(1)));
         BigDecimal numSymbols = new BigDecimal(seenSymbols);
-        symbolsProbabilities.replaceAll((k, v) -> symbolsAppearing.get(k).divide(numSymbols, scale, RoundingMode.HALF_DOWN));
 
     }
 
@@ -53,25 +53,22 @@ public class AdaptiveAritmaticCompressor<T extends Comparable<T>> {
 
     protected void makeMaps() {
         seenSymbols = 0;
-        symbolsProbabilities = new HashMap<>();
         symbolsAppearing = new HashMap<>();
         for (T symbol : possibleSymbols){
             seenSymbols += 1;
-            symbolsProbabilities.put(symbol, BigDecimal.valueOf(1.0 / possibleSymbols.size()));
             symbolsAppearing.put(symbol, new BigDecimal(1));
 
         }
-        this.scale = symbolsProbabilities.get(possibleSymbols.toArray()[0]).scale() * 3;
 
     }
 
     protected BigDecimal[] restrict(BigDecimal low, BigDecimal high, T symbol) {
         BigDecimal range = high.subtract(low);
 
-        BigDecimal symbolProb = symbolsProbabilities.get(symbol);
-        BigDecimal lowBound = symbolsProbabilities.entrySet().stream().
+        BigDecimal symbolProb = symbolsAppearing.get(symbol).divide(BigDecimal.valueOf(seenSymbols), scale, RoundingMode.HALF_DOWN) ;
+        BigDecimal lowBound = symbolsAppearing.entrySet().stream().
                 filter(entry -> entry.getKey().compareTo(symbol) < 0).
-                map(Map.Entry::getValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+                map(entry -> entry.getValue().divide(BigDecimal.valueOf(seenSymbols), scale, RoundingMode.HALF_DOWN)).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal highBound = lowBound.add(symbolProb);
         BigDecimal newLow = low.add(range.multiply(lowBound)).setScale(scale, RoundingMode.DOWN);

@@ -1,14 +1,13 @@
 package webdata;
 
-import webdata.Compress.BitMapProductId;
-import webdata.Compress.FixedBitCompressor;
-import webdata.Compress.OneByteCompressor;
-import webdata.Compress.TwoByteCompressor;
+import webdata.Compress.*;
+import webdata.dictionary.ReviewsData;
+import webdata.dictionary.SubIndexMerger;
+import webdata.dictionary.Trie;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,10 +61,20 @@ public class IndexWriter {
                     subIndexId++;
                 }
                 reviewID++;
+                if (reviewID > 40000) break;  //TODO remove - dangerous
+
             }
             flush(dir, subIndexId);
-            writeFinalStatitics();
-            makeFinalDictionary();
+            makeFinalDictionary(dir);
+
+            //Writing final stats
+            FileWriter numOfreviewsWrite = new FileWriter(dir + "/" + NUMBER_OF_REVIEWS);
+            numOfreviewsWrite.write(Integer.valueOf(reviewID - 1).toString());
+            numOfreviewsWrite.close();
+
+            FileWriter numOfTokensWrite = new FileWriter(dir + "/" + TOTAL_TOKEN_COUNT_FILE);
+            numOfTokensWrite.write(Long.valueOf(totalTokenCount).toString());
+            numOfTokensWrite.close();
 
         } catch (FileNotFoundException e) {
             System.err.println("Didn't find input file");
@@ -82,9 +91,67 @@ public class IndexWriter {
         //TODO
     }
 
-    private void makeFinalDictionary() {
-        //TODO
+    public void makeFinalDictionary(String dir) throws IOException {
+        SubIndexMerger merger = new SubIndexMerger(dir + "/" + TEMP);
+        String finalDict = merger.merge();
+
+        CustomIntList numOfReviewsCoded = new CustomIntList();
+        ArrayList<BigDecimal> codes = new ArrayList<>();
+        Trie<ReviewsData> trie = new Trie<>();
+
+        int postingListIndex = 0;
+        long postingListStart = 0;
+        long postingListEnd;
+        GroupVarintCompressor enc = new GroupVarintCompressor();
+        try (BufferedReader reader = new BufferedReader(new FileReader(dir + "/" + TEMP +"/"+ finalDict));
+             BufferedOutputStream postingListWriter = new BufferedOutputStream(new FileOutputStream(dir + "/" + REVERSE_INDEX_CODES_FILE)))
+        {
+            String entryString = "";
+            while ((entryString=reader.readLine())!=null && entryString.length()!=0) {
+                var entry = merger.makeEntryFromLine(entryString);
+                if (entry.getKey().equals("00")) System.out.println(entry.getValue());
+                numOfReviewsCoded.add(entry.getValue().size() / 2);
+                var bytes = enc.getEncodedBytes(entry.getValue().toGapsEveryTwo().toPrimitiveArray());
+                postingListEnd = postingListStart + bytes.length;
+                postingListWriter.write(bytes);
+                trie.add(entry.getKey(),
+                        new ReviewsData(calculateFreqFromList(entry.getValue()), postingListIndex, postingListStart, postingListEnd));
+                postingListStart = postingListEnd;
+                if (postingListIndex % 10000 == 0) System.out.println(postingListIndex);
+                postingListIndex++;
+            }
+        }
+
+        twoByteCompressor.encode(numOfReviewsCoded.toPrimitiveArray(), dir + "/" + REVIEWS_CONTATING_TOKEN_FILE);
+
+
+        try (FileOutputStream fileOut = new FileOutputStream(dir + "/" + DICTIONARY_FILE);
+             ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
+            out.writeObject(trie);
+
+        } catch (IOException e) {
+            System.err.println("Couldn't save dictionary");
+            e.printStackTrace();
+        }
+
+        File mergeddict = new File(dir + "/" + TEMP +"/"+ finalDict);
+        mergeddict.delete();
+
     }
+
+//    private long writePostingListAndReturnIndex(CustomIntList postingList){
+//
+//
+//    }
+
+    private int calculateFreqFromList(CustomIntList list) {
+        int freq = 0;
+        for (int i = 1; i < list.size(); i+=2) {
+            freq += list.get(i);
+        }
+        return freq;
+    }
+
 
     private void flush(String dir, int subIndexId) throws IOException{
         System.out.println("Flushing");
@@ -109,7 +176,7 @@ public class IndexWriter {
         System.gc();
 
         //flush and reset dict
-        File subIndexDict = new File(dir + "/" + TEMP + "/" + "subIndex" + subIndexId);
+        File subIndexDict = new File(dir + "/" + TEMP + "/" + "subIndex" + String.format("%03d", subIndexId));
         subIndexDict.createNewFile();
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(subIndexDict))){
             for (var entry : wordsDict.entrySet()){
@@ -222,14 +289,6 @@ public class IndexWriter {
             postingList.add(entry.getValue());
         }
     }
-
-
-
-
-    private void writeEntryToDisk(String word, CustomIntList postingList, int subIndexId){
-
-    }
-
 
 
     private void makeAllfilesAndDirs(String dir) {
