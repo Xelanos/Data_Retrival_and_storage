@@ -38,10 +38,15 @@ public class SubIndexMerger {
 
     private void mergeTwoIndexes(String firstSubIndex, String secondSubIndex) {
 
-        long avalibleMem = Runtime.getRuntime().freeMemory() - 200000000; //Keep 20MB for a rainy day
+        System.gc();
 
-        try (BufferedReader firstFile = new BufferedReader(new FileReader(workingDir + "/" + firstSubIndex), (int) avalibleMem / 5);
-             BufferedReader secondFile = new BufferedReader(new FileReader(workingDir + "/" + secondSubIndex), (int) avalibleMem / 5);
+        long avalibleMem = Runtime.getRuntime().freeMemory() - 200000000; //Keep 20MB for a rainy day
+        System.out.println(avalibleMem);
+
+        int mem = Long.valueOf(avalibleMem).intValue() > 0 ? Long.valueOf(avalibleMem).intValue() : Integer.MAX_VALUE;
+
+        try (BufferedReader firstFile = new BufferedReader(new FileReader(workingDir + "/" + firstSubIndex), mem / 3);
+             BufferedReader secondFile = new BufferedReader(new FileReader(workingDir + "/" + secondSubIndex), mem / 3);
              BufferedWriter output = Files.newBufferedWriter(Paths.get(workingDir + "/" + firstSubIndex + secondSubIndex),
                      StandardOpenOption.CREATE, StandardOpenOption.APPEND)
         ) {

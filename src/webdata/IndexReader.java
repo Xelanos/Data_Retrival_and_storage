@@ -6,7 +6,11 @@ import webdata.dictionary.Trie;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static webdata.IndexFiles.*;
 
@@ -173,7 +177,6 @@ public class IndexReader {
         }
 
         var postingList = CustomIntList.fromGapsEveryTwoIterable(groupVarintReader.decodeAllBytes(coded));
-        System.out.println(postingList);
 
         return Collections.enumeration(postingList);
     }
@@ -202,10 +205,21 @@ public class IndexReader {
      */
     public Enumeration<Integer> getProductReviews(String productId) {
         List<Integer> result = new ArrayList<>();
-        for (int i = 1; i <= numberOfreviews; i++) {
-            if (getProductId(i).equals(productId)) {
-                result.add(i);
-            }
+        Pattern pattern = Pattern.compile(productId);
+        String order;
+        try (BufferedReader reader = Files.newBufferedReader(Paths.get( indexDirectory + "/" + REVIEWS_PRODUCT_ORDER_FILE))){
+            order = reader.readLine();
+
+        } catch (IOException e) {
+            System.err.println("Couldn't read productId info");
+            e.printStackTrace();
+            return Collections.enumeration(result);
+        }
+        Matcher matcher = pattern.matcher(order);
+        // Check all occurrences
+        while (matcher.find()) {
+            int index = matcher.start();
+            result.addAll(this.productId.getAllIdsForIndex(index));
         }
         return Collections.enumeration(result);
     }

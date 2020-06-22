@@ -56,12 +56,12 @@ public class IndexWriter {
                 if (reviewID % 10000 == 0){
                     System.out.println(reviewID);
                 }
-                if (Runtime.getRuntime().freeMemory() < 20000000){
+                if (Runtime.getRuntime().freeMemory() < Runtime.getRuntime().totalMemory() / 10){
                     flush(dir, subIndexId);
                     subIndexId++;
                 }
                 reviewID++;
-                if (reviewID > 40000) break;  //TODO remove - dangerous
+                if (reviewID > 4500000) break;
 
             }
             flush(dir, subIndexId);
@@ -87,9 +87,6 @@ public class IndexWriter {
         }
     }
 
-    private void writeFinalStatitics() {
-        //TODO
-    }
 
     public void makeFinalDictionary(String dir) throws IOException {
         SubIndexMerger merger = new SubIndexMerger(dir + "/" + TEMP);
@@ -109,7 +106,6 @@ public class IndexWriter {
             String entryString = "";
             while ((entryString=reader.readLine())!=null && entryString.length()!=0) {
                 var entry = merger.makeEntryFromLine(entryString);
-                if (entry.getKey().equals("00")) System.out.println(entry.getValue());
                 numOfReviewsCoded.add(entry.getValue().size() / 2);
                 var bytes = enc.getEncodedBytes(entry.getValue().toGapsEveryTwo().toPrimitiveArray());
                 postingListEnd = postingListStart + bytes.length;
@@ -136,6 +132,8 @@ public class IndexWriter {
 
         File mergeddict = new File(dir + "/" + TEMP +"/"+ finalDict);
         mergeddict.delete();
+
+        System.out.println("done writing dict");
 
     }
 

@@ -3,10 +3,10 @@ package webdata.Compress;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 
 public class BitMapProductId extends BitMapCompress<String> {
 
-    private String binaryString;
 
     public void writeTofiles(String bitMapFile, String orderFile) throws IOException {
         FileWriter bitMapWriter = new FileWriter(bitMapFile, true);
@@ -56,6 +56,29 @@ public class BitMapProductId extends BitMapCompress<String> {
             e.printStackTrace();
             return "";
         }
+    }
+
+    public List<Integer> getAllIdsForIndex(int index){
+        ArrayList<Integer> result = new ArrayList<>();
+        int correctOneToCountFrom = (index / 10) + 1;
+        int numberOfOnesSeen = 0;
+        for (int i = 0; i < binaryString.length(); i++) {
+            if (binaryString.charAt(i) == '1'){
+                numberOfOnesSeen++;
+            }
+            if (numberOfOnesSeen == correctOneToCountFrom){
+                result.add(i + 1);
+                i++;
+                while (binaryString.charAt(i) != '1'){
+                    result.add(i + 1);
+                    i++;
+                }
+                return result;
+            }
+
+
+        }
+        return result;
     }
 
 

@@ -13,7 +13,7 @@ public abstract class BitMapCompress<T extends Comparable<T>> {
     StringBuilder bitMapBuilder = new StringBuilder();
     T lastOne;
     int size = 0;
-    private String binaryString;
+    public String binaryString;
 
     public List<T> getOrder() {
         return order;
